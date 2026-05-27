@@ -230,6 +230,7 @@ class Boton:
         self.rect = pygame.Rect(x, y, ancho, alto)
         self.accion = accion
         self.color = color
+        self.presionado = False
         # Escalar el icono proporcionalmente al tamaño del botón
         self.icono = None
         base_icon = ICONOS_BOTONES.get(accion)
@@ -245,25 +246,33 @@ class Boton:
         if self.rect.collidepoint(mouse_pos):
             color_actual = tuple(min(c + 20, 255) for c in self.color)
         
-        pygame.draw.rect(pantalla, (150, 150, 150), (self.rect.x + 4, self.rect.y + 4, self.rect.width, self.rect.height), border_radius=15)
-        pygame.draw.rect(pantalla, color_actual, self.rect, border_radius=15)
-        pygame.draw.rect(pantalla, COLOR_TEXTO, self.rect, 3, border_radius=15)
+        # Efecto de presión
+        offset = 4 if self.presionado else 0
+        rect_dibujo = self.rect.move(offset, offset)
+        
+        # Sombra (solo si no está presionado)
+        if not self.presionado:
+            pygame.draw.rect(pantalla, (150, 150, 150), (self.rect.x + 4, self.rect.y + 4, self.rect.width, self.rect.height), border_radius=15)
+        
+        # Botón
+        pygame.draw.rect(pantalla, color_actual, rect_dibujo, border_radius=15)
+        pygame.draw.rect(pantalla, COLOR_TEXTO, rect_dibujo, 3, border_radius=15)
         
         if self.icono:
-            rect_icon = self.icono.get_rect(center=self.rect.center)
+            rect_icon = self.icono.get_rect(center=rect_dibujo.center)
             pantalla.blit(self.icono, rect_icon)
         else:
             try:
                 # Mapeo de texto para botones sin icono
                 textos = {
                     "ROBOT_SEL": "Robot",
-                    "TEACHER_SEL": "Teacher"
+                    "TEACHER_SEL": "Profe"
                 }
                 txt_mostrar = textos.get(self.accion, self.accion)
                 
                 f = pygame.font.SysFont("Arial", 24, bold=True)
                 img = f.render(txt_mostrar, True, COLOR_TEXTO)
-                pantalla.blit(img, img.get_rect(center=self.rect.center))
+                pantalla.blit(img, img.get_rect(center=rect_dibujo.center))
             except: pass
 
     def clic(self, pos):
@@ -336,25 +345,31 @@ def main():
                 # El offset se recalcula dinámicamente en el loop principal
                 pass
 
-            if evento.type == pygame.MOUSEBUTTONDOWN and not ejecutando:
+            if evento.type == pygame.MOUSEBUTTONDOWN:
                 for btn in botones:
                     if btn.clic(evento.pos):
-                        if btn.accion == "PLAY":
-                            if cola_instrucciones:
-                                ejecutando, instruccion_actual, ultimo_movimiento_tiempo = True, 0, tiempo_actual
-                        elif btn.accion == "REINICIAR":
-                            # Acción de reinicio manual por botón
-                            robot = Robot(0, 0, personaje_actual)
-                            meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
-                            cola_instrucciones, ejecutando, lista_fuegos = [], False, []
-                        elif btn.accion == "ROBOT_SEL":
-                            personaje_actual = "robot.png"
-                            robot.cambiar_imagen(personaje_actual)
-                        elif btn.accion == "TEACHER_SEL":
-                            personaje_actual = "fer.png"
-                            robot.cambiar_imagen(personaje_actual)
-                        else:
-                            cola_instrucciones.append(btn.accion)
+                        btn.presionado = True
+                        if not ejecutando:
+                            if btn.accion == "PLAY":
+                                if cola_instrucciones:
+                                    ejecutando, instruccion_actual, ultimo_movimiento_tiempo = True, 0, tiempo_actual
+                            elif btn.accion == "REINICIAR":
+                                # Acción de reinicio manual por botón
+                                robot = Robot(0, 0, personaje_actual)
+                                meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
+                                cola_instrucciones, ejecutando, lista_fuegos = [], False, []
+                            elif btn.accion == "ROBOT_SEL":
+                                personaje_actual = "robot.png"
+                                robot.cambiar_imagen(personaje_actual)
+                            elif btn.accion == "TEACHER_SEL":
+                                personaje_actual = "fer.png"
+                                robot.cambiar_imagen(personaje_actual)
+                            else:
+                                cola_instrucciones.append(btn.accion)
+            
+            if evento.type == pygame.MOUSEBUTTONUP:
+                for btn in botones:
+                    btn.presionado = False
             
             if evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_q:
