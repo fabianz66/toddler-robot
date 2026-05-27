@@ -205,7 +205,7 @@ def cargar_recursos():
             IMAGEN_META = pygame.transform.smoothscale(img, (TAMANO_CELDA - 20, TAMANO_CELDA - 20))
         except: pass
         
-        mapeo = {"up": "ARRIBA", "down": "ABAJO", "left": "IZQUIERDA", "right": "DERECHA", "play": "PLAY"}
+        mapeo = {"up": "ARRIBA", "down": "ABAJO", "left": "IZQUIERDA", "right": "DERECHA", "play": "PLAY", "restart": "REINICIAR"}
         for file_name, key in mapeo.items():
             try:
                 img = pygame.image.load(f"icon_{file_name}.png").convert_alpha()
@@ -274,16 +274,25 @@ def main():
         pantalla_actual_w, pantalla_actual_h = pantalla.get_size()
         offset_x_global = (pantalla_actual_w - COLUMNAS * TAMANO_CELDA) // 2
         
-        ancho_btn, alto_btn, espacio = 160, 100, 20
-        inicio_x_btns = (pantalla_actual_w - (ancho_btn * 5 + espacio * 4)) // 2
-        y_botones = pantalla_actual_h - 140
+        # --- DISEÑO DE BOTONES TILO TECLADO ---
+        ancho_btn, alto_btn, espacio = 140, 85, 12
+        # Calculamos el ancho total del bloque (3 de flechas + 2 de acción + espacios)
+        ancho_total_ui = (ancho_btn * 5) + (espacio * 6)
+        x_base = (pantalla_actual_w - ancho_total_ui) // 2
+        y_base = pantalla_actual_h - 110 # Fila de abajo
         
         botones = [
-            Boton(inicio_x_btns, y_botones, ancho_btn, alto_btn, "ARRIBA", (129, 212, 250)),
-            Boton(inicio_x_btns + (ancho_btn + espacio), y_botones, ancho_btn, alto_btn, "ABAJO", (244, 143, 177)),
-            Boton(inicio_x_btns + (ancho_btn + espacio) * 2, y_botones, ancho_btn, alto_btn, "IZQUIERDA", (255, 245, 157)),
-            Boton(inicio_x_btns + (ancho_btn + espacio) * 3, y_botones, ancho_btn, alto_btn, "DERECHA", (165, 214, 167)),
-            Boton(inicio_x_btns + (ancho_btn + espacio) * 4, y_botones, ancho_btn, alto_btn, "PLAY", COLOR_EJECUTAR)
+            # Fila Inferior (Flechas)
+            Boton(x_base, y_base, ancho_btn, alto_btn, "IZQUIERDA", (255, 245, 157)),
+            Boton(x_base + (ancho_btn + espacio), y_base, ancho_btn, alto_btn, "ABAJO", (244, 143, 177)),
+            Boton(x_base + (ancho_btn + espacio) * 2, y_base, ancho_btn, alto_btn, "DERECHA", (165, 214, 167)),
+            
+            # Fila Superior (Arriba - Centrada sobre Abajo)
+            Boton(x_base + (ancho_btn + espacio), y_base - alto_btn - 8, ancho_btn, alto_btn, "ARRIBA", (129, 212, 250)),
+            
+            # Botones de Acción (A la derecha)
+            Boton(x_base + (ancho_btn + espacio) * 3 + 30, y_base, ancho_btn, alto_btn, "PLAY", COLOR_EJECUTAR),
+            Boton(x_base + (ancho_btn + espacio) * 4 + 30, y_base, ancho_btn, alto_btn, "REINICIAR", (255, 204, 128))
         ]
 
         for evento in pygame.event.get():
@@ -300,6 +309,11 @@ def main():
                         if btn.accion == "PLAY":
                             if cola_instrucciones:
                                 ejecutando, instruccion_actual, ultimo_movimiento_tiempo = True, 0, tiempo_actual
+                        elif btn.accion == "REINICIAR":
+                            # Acción de reinicio manual por botón
+                            robot = Robot(0, 0)
+                            meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
+                            cola_instrucciones, ejecutando, lista_fuegos = [], False, []
                         else:
                             cola_instrucciones.append(btn.accion)
             
@@ -363,7 +377,7 @@ def main():
         pantalla.blit(img_inst, (20, 10))
 
         fin_grilla_y = MARGEN_SUPERIOR + FILAS * TAMANO_CELDA
-        y_plan = fin_grilla_y + ((y_botones - fin_grilla_y) // 2) - 25
+        y_plan = fin_grilla_y + ((y_base - fin_grilla_y) // 2) - 25
         img_plan_label = fuente_pequena.render("Instrucciones:", True, COLOR_TEXTO)
         pantalla.blit(img_plan_label, (offset_x_global, y_plan + 10))
         
