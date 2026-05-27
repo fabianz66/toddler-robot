@@ -96,6 +96,7 @@ class Robot:
     def __init__(self, x, y):
         self.grid_x = x
         self.grid_y = y
+        # Coordenadas en píxeles RELATIVAS al inicio de la grilla (0,0 del tablero)
         self.pix_x = x * TAMANO_CELDA
         self.pix_y = y * TAMANO_CELDA
         self.target_pix_x = self.pix_x
@@ -115,7 +116,7 @@ class Robot:
             self.imagen_original = None
             self.imagen_dibujar = None
 
-    def mover(self, direccion, offset_x):
+    def mover(self, direccion):
         if self.moviendose: return
         
         if direccion == "ARRIBA" and self.grid_y > 0:
@@ -127,8 +128,9 @@ class Robot:
         elif direccion == "DERECHA" and self.grid_x < COLUMNAS - 1:
             self.grid_x += 1
         
-        self.target_pix_x = self.grid_x * TAMANO_CELDA + offset_x
-        self.target_pix_y = self.grid_y * TAMANO_CELDA + MARGEN_SUPERIOR
+        # Target relativo al inicio de la grilla
+        self.target_pix_x = self.grid_x * TAMANO_CELDA
+        self.target_pix_y = self.grid_y * TAMANO_CELDA
         self.moviendose = True
 
     def actualizar(self):
@@ -161,17 +163,22 @@ class Robot:
         if self.pix_x == self.target_pix_x and self.pix_y == self.target_pix_y:
             self.moviendose = False
 
-    def dibujar(self, pantalla):
+    def dibujar(self, pantalla, offset_x):
         if self.imagen_dibujar:
+            # Calcular posición absoluta en pantalla aplicando el offset_x actual
+            abs_x = self.pix_x + offset_x
+            abs_y = self.pix_y + MARGEN_SUPERIOR
+            
             sombra_rect = pygame.Rect(0, 0, TAMANO_CELDA // 2, 10)
-            sombra_rect.center = (self.pix_x + TAMANO_CELDA // 2, self.pix_y + TAMANO_CELDA - 10)
+            sombra_rect.center = (abs_x + TAMANO_CELDA // 2, abs_y + TAMANO_CELDA - 10)
             pygame.draw.ellipse(pantalla, (220, 220, 220), sombra_rect)
             
-            rect = self.imagen_dibujar.get_rect(center=(self.pix_x + TAMANO_CELDA // 2, self.pix_y + TAMANO_CELDA // 2 - self.bob))
+            rect = self.imagen_dibujar.get_rect(center=(abs_x + TAMANO_CELDA // 2, abs_y + TAMANO_CELDA // 2 - self.bob))
             pantalla.blit(self.imagen_dibujar, rect)
         else:
-            x, y = self.pix_x, self.pix_y
-            centro = (x + TAMANO_CELDA // 2, y + TAMANO_CELDA // 2)
+            abs_x = self.pix_x + offset_x
+            abs_y = self.pix_y + MARGEN_SUPERIOR
+            centro = (abs_x + TAMANO_CELDA // 2, abs_y + TAMANO_CELDA // 2)
             pygame.draw.circle(pantalla, COLOR_ROBOT, centro, TAMANO_CELDA // 3)
 
 # Cargar imagen de la meta y iconos globalmente
@@ -260,15 +267,7 @@ def main():
     
     robot = Robot(0, 0)
     meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
-    cola_instrucciones = []
-    ejecutando = False
-    instruccion_actual = 0
-    lista_fuegos = []
-    
-    offset_x_global = (pantalla_actual_w - COLUMNAS * TAMANO_CELDA) // 2
-    robot.pix_x = robot.grid_x * TAMANO_CELDA + offset_x_global
-    robot.pix_y = robot.grid_y * TAMANO_CELDA + MARGEN_SUPERIOR
-    robot.target_pix_x, robot.target_pix_y = robot.pix_x, robot.pix_y
+    cola_instrucciones, ejecutando, instruccion_actual, lista_fuegos = [], False, 0, []
 
     while True:
         tiempo_actual = pygame.time.get_ticks()
@@ -292,11 +291,8 @@ def main():
                 pygame.quit(); sys.exit()
             
             if evento.type == pygame.VIDEORESIZE:
-                # Actualizar posición del robot siempre que cambie el tamaño de forma segura
-                if not ejecutando and not robot.moviendose:
-                    # El offset se recalcula al inicio del loop principal, aquí solo refrescamos la posición visual
-                    # No llamamos a set_mode aquí para evitar conflictos en macOS
-                    pass
+                # El offset se recalcula dinámicamente en el loop principal
+                pass
 
             if evento.type == pygame.MOUSEBUTTONDOWN and not ejecutando:
                 for btn in botones:
@@ -311,23 +307,16 @@ def main():
                 if evento.key == pygame.K_q:
                     pygame.quit(); sys.exit()
                 if evento.key == pygame.K_f:
-                    # Usar toggle_fullscreen es la forma correcta y segura de hacerlo en macOS
-                    # para evitar el error "NSWindowStyleMaskFullScreen cleared on a window outside of transition"
                     pygame.display.toggle_fullscreen()
-                
                 if evento.key == pygame.K_r:
                     robot = Robot(0, 0)
-                    offset_x_global = (pantalla.get_width() - COLUMNAS * TAMANO_CELDA) // 2
-                    robot.pix_x = robot.grid_x * TAMANO_CELDA + offset_x_global
-                    robot.pix_y = robot.grid_y * TAMANO_CELDA + MARGEN_SUPERIOR
-                    robot.target_pix_x, robot.target_pix_y = robot.pix_x, robot.pix_y
                     meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
                     cola_instrucciones, ejecutando, lista_fuegos = [], False, []
 
         if ejecutando and not robot.moviendose:
             if tiempo_actual - ultimo_movimiento_tiempo > 500:
                 if instruccion_actual < len(cola_instrucciones):
-                    robot.mover(cola_instrucciones[instruccion_actual], offset_x_global)
+                    robot.mover(cola_instrucciones[instruccion_actual])
                     instruccion_actual += 1
                     ultimo_movimiento_tiempo = tiempo_actual
                 else:
@@ -349,7 +338,8 @@ def main():
                 elif inst == "DERECHA" and temp_x < COLUMNAS - 1: temp_x += 1
                 puntos_ruta.append((offset_x_global + temp_x * TAMANO_CELDA + TAMANO_CELDA // 2, MARGEN_SUPERIOR + temp_y * TAMANO_CELDA + TAMANO_CELDA // 2))
             if puntos_ruta:
-                puntos_completos = [(robot.pix_x + TAMANO_CELDA // 2, robot.pix_y + TAMANO_CELDA // 2)] + puntos_ruta
+                inicio_linea = (robot.pix_x + offset_x_global + TAMANO_CELDA // 2, robot.pix_y + MARGEN_SUPERIOR + TAMANO_CELDA // 2)
+                puntos_completos = [inicio_linea] + puntos_ruta
                 for p in puntos_ruta: pygame.draw.circle(pantalla, (255, 112, 67, 100), p, 8)
                 if len(puntos_completos) > 1: pygame.draw.lines(pantalla, (255, 112, 67), False, puntos_completos, 3)
 
@@ -359,7 +349,7 @@ def main():
                     dibujar_meta(pantalla, offset_x_global + col * TAMANO_CELDA, MARGEN_SUPERIOR + fila * TAMANO_CELDA)
 
         robot.actualizar()
-        robot.dibujar(pantalla)
+        robot.dibujar(pantalla, offset_x_global)
         
         pos_robot = (robot.grid_x, robot.grid_y)
         if pos_robot in meta_pos_lista and not robot.moviendose:
