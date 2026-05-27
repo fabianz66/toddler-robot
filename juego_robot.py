@@ -47,9 +47,6 @@ class Particula:
 
     def dibujar(self, pantalla):
         if self.vida > 0:
-            # Dibujar un pequeño destello con el color desvaneciéndose
-            # Nota: pygame.draw.circle no soporta alpha directo sin una superficie especial,
-            # pero para un juego infantil el efecto visual es suficiente.
             pygame.draw.circle(pantalla, self.color, (int(self.x), int(self.y)), random.randint(2, 4))
 
 class FuegosArtificiales:
@@ -92,11 +89,11 @@ class Robot:
         self.moviendose = False
         self.angulo = 0
         self.angulo_objetivo = 0
+        self.bob = 0
         
         # --- CARGAR IMAGEN DE ROBOT ---
         try:
             self.imagen_original = pygame.image.load("robot.png").convert_alpha()
-            # Escalar imagen al tamaño de la celda
             self.imagen_original = pygame.transform.smoothscale(self.imagen_original, (TAMANO_CELDA - 15, TAMANO_CELDA - 15))
             self.imagen_dibujar = self.imagen_original
         except Exception as e:
@@ -124,11 +121,9 @@ class Robot:
         t = pygame.time.get_ticks()
         
         if self.moviendose:
-            # Animación de caminado procedural
             self.bob = abs(math.sin(t * 0.015)) * 12
             scale_y = 1.0 + math.sin(t * 0.015) * 0.1
         else:
-            # Respiración suave
             self.bob = math.sin(t * 0.003) * 3
             scale_y = 1.0 + math.sin(t * 0.003) * 0.02
 
@@ -154,12 +149,10 @@ class Robot:
 
     def dibujar(self, pantalla):
         if self.imagen_dibujar:
-            # Sombra
             sombra_rect = pygame.Rect(0, 0, TAMANO_CELDA // 2, 10)
             sombra_rect.center = (self.pix_x + TAMANO_CELDA // 2, self.pix_y + TAMANO_CELDA - 10)
             pygame.draw.ellipse(pantalla, (220, 220, 220), sombra_rect)
             
-            # Dibujar siempre derecho con el bob (salto)
             rect = self.imagen_dibujar.get_rect(center=(self.pix_x + TAMANO_CELDA // 2, self.pix_y + TAMANO_CELDA // 2 - self.bob))
             pantalla.blit(self.imagen_dibujar, rect)
         else:
@@ -174,89 +167,48 @@ SONIDO_CHEER = None
 
 def cargar_recursos():
     global IMAGEN_META, ICONOS_BOTONES, SONIDO_CHEER
-    print("DEBUG: Iniciando cargar_recursos")
     try:
-        # Mixer para audio
         pygame.mixer.init()
-        
-        # Música de fondo
         try:
             pygame.mixer.music.load("background.mp3")
-            pygame.mixer.music.play(-1) # Bucle infinito
+            pygame.mixer.music.play(-1)
             pygame.mixer.music.set_volume(0.3)
-            print("DEBUG: Música de fondo cargada")
-        except Exception as e:
-            print(f"No se pudo cargar background.mp3: {e}")
+        except: pass
 
-        # Sonido de victoria
         try:
             SONIDO_CHEER = pygame.mixer.Sound("cheer.mp3")
-            print("DEBUG: Sonido cheer cargado")
-        except Exception as e:
-            print(f"No se pudo cargar cheer.mp3: {e}")
+        except: pass
 
-        # Meta (Cricri)
         try:
             img = pygame.image.load("cricri.png").convert_alpha()
             IMAGEN_META = pygame.transform.smoothscale(img, (TAMANO_CELDA - 20, TAMANO_CELDA - 20))
-        except Exception as e:
-            print(f"Error cargando cricri.png: {e}")
+        except: pass
         
-        # Iconos de botones (Mapeo explícito)
-        mapeo = {
-            "up": "ARRIBA",
-            "down": "ABAJO",
-            "left": "IZQUIERDA",
-            "right": "DERECHA",
-            "play": "PLAY"
-        }
+        mapeo = {"up": "ARRIBA", "down": "ABAJO", "left": "IZQUIERDA", "right": "DERECHA", "play": "PLAY"}
         for file_name, key in mapeo.items():
             try:
                 img = pygame.image.load(f"icon_{file_name}.png").convert_alpha()
                 ICONOS_BOTONES[key] = pygame.transform.smoothscale(img, (70, 70))
-                print(f"DEBUG: Icono cargado exitosamente: {key} (size: {ICONOS_BOTONES[key].get_size()})")
-            except Exception as e:
-                print(f"DEBUG ERROR: No se pudo cargar icon_{file_name}.png: {e}")
+            except: pass
     except Exception as e:
-        print(f"DEBUG ERROR: Error general en cargar_recursos: {e}")
-    print(f"DEBUG: ICONOS_BOTONES contiene: {list(ICONOS_BOTONES.keys())}")
+        print(f"Error cargando recursos: {e}")
 
 def dibujar_meta(pantalla, x, y):
     if IMAGEN_META:
         t = pygame.time.get_ticks()
-        # Animación de "meta" (levitar + pulso suave)
         offset_meta = math.sin(t * 0.005) * 8
         pulse = 1.0 + math.sin(t * 0.004) * 0.05
-        
-        # Crear superficie escalada para el pulso
         w, h = IMAGEN_META.get_size()
         img_pulsada = pygame.transform.smoothscale(IMAGEN_META, (int(w * pulse), int(h * pulse)))
-        
         rect = img_pulsada.get_rect(center=(x + TAMANO_CELDA // 2, y + TAMANO_CELDA // 2 + offset_meta))
         pantalla.blit(img_pulsada, rect)
-    else:
-        centro = (x + TAMANO_CELDA // 2, y + TAMANO_CELDA // 2)
-        # Una estrella o trofeo simple
-        puntos = []
-        for i in range(10):
-            radio = 35 if i % 2 == 0 else 15
-            angulo = i * (3.1415 * 2 / 10)
-            px = centro[0] + radio * pygame.math.Vector2(1, 0).rotate_rad(angulo).x
-            py = centro[1] + radio * pygame.math.Vector2(1, 0).rotate_rad(angulo).y
-            puntos.append((px, py))
-        pygame.draw.polygon(pantalla, (255, 215, 0), puntos) # Dorado
-        pygame.draw.polygon(pantalla, (184, 134, 11), puntos, 3) # Borde
 
 class Boton:
     def __init__(self, x, y, ancho, alto, accion, color):
         self.rect = pygame.Rect(x, y, ancho, alto)
         self.accion = accion
         self.color = color
-        # Mapear accion a nombre de icono
-        key = accion if accion != "EJECUTAR" else "PLAY"
-        self.icono = ICONOS_BOTONES.get(key)
-        if self.icono is None:
-            print(f"DEBUG: Missing icon for {accion} (key: {key})")
+        self.icono = ICONOS_BOTONES.get(accion)
 
     def dibujar(self, pantalla):
         mouse_pos = pygame.mouse.get_pos()
@@ -264,9 +216,7 @@ class Boton:
         if self.rect.collidepoint(mouse_pos):
             color_actual = tuple(min(c + 20, 255) for c in self.color)
         
-        # Sombra
         pygame.draw.rect(pantalla, (150, 150, 150), (self.rect.x + 4, self.rect.y + 4, self.rect.width, self.rect.height), border_radius=15)
-        # Botón
         pygame.draw.rect(pantalla, color_actual, self.rect, border_radius=15)
         pygame.draw.rect(pantalla, COLOR_TEXTO, self.rect, 3, border_radius=15)
         
@@ -274,43 +224,34 @@ class Boton:
             rect_icon = self.icono.get_rect(center=self.rect.center)
             pantalla.blit(self.icono, rect_icon)
         else:
-            # Fallback to text if icon is missing
             try:
                 f = pygame.font.SysFont("Arial", 24)
                 img = f.render(self.accion, True, COLOR_TEXTO)
                 pantalla.blit(img, img.get_rect(center=self.rect.center))
-            except:
-                pass
+            except: pass
 
     def clic(self, pos):
         return self.rect.collidepoint(pos)
 
 def main():
     pygame.init()
-    pantalla_actual_w = ANCHO_VENTANA
-    pantalla_actual_h = ALTO_VENTANA
+    pantalla_actual_w, pantalla_actual_h = ANCHO_VENTANA, ALTO_VENTANA
     pantalla = pygame.display.set_mode((pantalla_actual_w, pantalla_actual_h), pygame.RESIZABLE)
     cargar_recursos()
-    pygame.display.set_caption("🤖 Mi Amigo Robot - Programación para Niños")
+    pygame.display.set_caption("🤖 Mi Amigo Robot")
     
     reloj = pygame.time.Clock()
     fuente = pygame.font.SysFont("Comic Sans MS", 36, bold=True)
     fuente_pequena = pygame.font.SysFont("Comic Sans MS", 24)
     
     fullscreen = False
-    
     robot = Robot(0, 0)
-    # Lista de posiciones para múltiples sombreros
     meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
-    
     cola_instrucciones = []
     ejecutando = False
     instruccion_actual = 0
-    
-    # Fuegos artificiales
     lista_fuegos = []
     
-    # Ajustar posición inicial del robot según el centro
     offset_x_global = (pantalla_actual_w - COLUMNAS * TAMANO_CELDA) // 2
     robot.pix_x = robot.grid_x * TAMANO_CELDA + offset_x_global
     robot.pix_y = robot.grid_y * TAMANO_CELDA + MARGEN_SUPERIOR
@@ -321,10 +262,7 @@ def main():
         pantalla_actual_w, pantalla_actual_h = pantalla.get_size()
         offset_x_global = (pantalla_actual_w - COLUMNAS * TAMANO_CELDA) // 2
         
-        # Reposicionar botones dinámicamente
-        ancho_btn = 160
-        alto_btn = 100
-        espacio = 20
+        ancho_btn, alto_btn, espacio = 160, 100, 20
         inicio_x_btns = (pantalla_actual_w - (ancho_btn * 5 + espacio * 4)) // 2
         y_botones = pantalla_actual_h - 140
         
@@ -338,8 +276,7 @@ def main():
 
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                pygame.quit(); sys.exit()
             
             if evento.type == pygame.VIDEORESIZE and not fullscreen:
                 pantalla = pygame.display.set_mode((evento.w, evento.h), pygame.RESIZABLE)
@@ -352,45 +289,29 @@ def main():
                     if btn.clic(evento.pos):
                         if btn.accion == "PLAY":
                             if cola_instrucciones:
-                                ejecutando = True
-                                instruccion_actual = 0
-                                ultimo_movimiento_tiempo = tiempo_actual
+                                ejecutando, instruccion_actual, ultimo_movimiento_tiempo = True, 0, tiempo_actual
                         else:
                             cola_instrucciones.append(btn.accion)
             
             if evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_q:
+                    pygame.quit(); sys.exit()
                 if evento.key == pygame.K_f:
                     fullscreen = not fullscreen
-                    if fullscreen:
-                        # Obtener resolución actual para modo pantalla completa
-                        res = pygame.display.Info()
-                        pantalla = pygame.display.set_mode((res.current_w, res.current_h), pygame.FULLSCREEN)
-                    else:
-                        pantalla = pygame.display.set_mode((ANCHO_VENTANA, ALTO_VENTANA), pygame.RESIZABLE)
-                    
-                    # REPOSICIONAR ROBOT INMEDIATAMENTE
+                    res = pygame.display.Info()
+                    pantalla = pygame.display.set_mode((res.current_w, res.current_h), pygame.FULLSCREEN if fullscreen else pygame.RESIZABLE)
                     if not ejecutando and not robot.moviendose:
-                        # Recalcular offset basado en la nueva pantalla
-                        nuevo_w = pantalla.get_width()
-                        nuevo_offset_x = (nuevo_w - COLUMNAS * TAMANO_CELDA) // 2
-                        robot.pix_x = robot.grid_x * TAMANO_CELDA + nuevo_offset_x
+                        nuevo_offset = (pantalla.get_width() - COLUMNAS * TAMANO_CELDA) // 2
+                        robot.pix_x = robot.grid_x * TAMANO_CELDA + nuevo_offset
                         robot.target_pix_x = robot.pix_x
-                
                 if evento.key == pygame.K_r:
-                    # REINICIO TOTAL
                     robot = Robot(0, 0)
-                    # Recalcular posición inicial exacta
                     offset_x_global = (pantalla.get_width() - COLUMNAS * TAMANO_CELDA) // 2
                     robot.pix_x = robot.grid_x * TAMANO_CELDA + offset_x_global
                     robot.pix_y = robot.grid_y * TAMANO_CELDA + MARGEN_SUPERIOR
                     robot.target_pix_x, robot.target_pix_y = robot.pix_x, robot.pix_y
-                    
-                    # Restaurar metas
                     meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
-                    
-                    cola_instrucciones = []
-                    ejecutando = False
-                    lista_fuegos = [] # Limpiar fuegos artificiales
+                    cola_instrucciones, ejecutando, lista_fuegos = [], False, []
 
         if ejecutando and not robot.moviendose:
             if tiempo_actual - ultimo_movimiento_tiempo > 500:
@@ -399,73 +320,67 @@ def main():
                     instruccion_actual += 1
                     ultimo_movimiento_tiempo = tiempo_actual
                 else:
-                    ejecutando = False
-                    cola_instrucciones = []
+                    ejecutando, cola_instrucciones = False, []
 
         pantalla.fill(COLOR_FONDO)
-        
-        # Dibujar Grilla con bordes suaves
         for fila in range(FILAS):
             for col in range(COLUMNAS):
                 rect = pygame.Rect(offset_x_global + col * TAMANO_CELDA, MARGEN_SUPERIOR + fila * TAMANO_CELDA, TAMANO_CELDA, TAMANO_CELDA)
-                pygame.draw.rect(pantalla, COLOR_GRILLA, rect, 0) # Relleno suave
-                pygame.draw.rect(pantalla, (255, 255, 255), rect, 2) # Borde blanco
-                
+                pygame.draw.rect(pantalla, COLOR_GRILLA, rect, 0)
+                pygame.draw.rect(pantalla, (255, 255, 255), rect, 2)
+
+        if cola_instrucciones and not ejecutando:
+            temp_x, temp_y, puntos_ruta = robot.grid_x, robot.grid_y, []
+            for inst in cola_instrucciones:
+                if inst == "ARRIBA" and temp_y > 0: temp_y -= 1
+                elif inst == "ABAJO" and temp_y < FILAS - 1: temp_y += 1
+                elif inst == "IZQUIERDA" and temp_x > 0: temp_x -= 1
+                elif inst == "DERECHA" and temp_x < COLUMNAS - 1: temp_x += 1
+                puntos_ruta.append((offset_x_global + temp_x * TAMANO_CELDA + TAMANO_CELDA // 2, MARGEN_SUPERIOR + temp_y * TAMANO_CELDA + TAMANO_CELDA // 2))
+            if puntos_ruta:
+                puntos_completos = [(robot.pix_x + TAMANO_CELDA // 2, robot.pix_y + TAMANO_CELDA // 2)] + puntos_ruta
+                for p in puntos_ruta: pygame.draw.circle(pantalla, (255, 112, 67, 100), p, 8)
+                if len(puntos_completos) > 1: pygame.draw.lines(pantalla, (255, 112, 67), False, puntos_completos, 3)
+
+        for fila in range(FILAS):
+            for col in range(COLUMNAS):
                 if (col, fila) in meta_pos_lista:
-                    dibujar_meta(pantalla, rect.x, rect.y)
+                    dibujar_meta(pantalla, offset_x_global + col * TAMANO_CELDA, MARGEN_SUPERIOR + fila * TAMANO_CELDA)
 
         robot.actualizar()
         robot.dibujar(pantalla)
-
-        # Verificar si el robot llegó a un sombrero
+        
         pos_robot = (robot.grid_x, robot.grid_y)
         if pos_robot in meta_pos_lista and not robot.moviendose:
             meta_pos_lista.remove(pos_robot)
-            if SONIDO_CHEER:
-                SONIDO_CHEER.play()
+            if SONIDO_CHEER: SONIDO_CHEER.play()
 
-        for btn in botones:
-            btn.dibujar(pantalla)
+        for btn in botones: btn.dibujar(pantalla)
             
-        # UI Info (Ayuda en la parte superior)
-        texto_inst = "Presiona 'F' para Pantalla Completa | 'R' para Reiniciar"
+        texto_inst = "Presiona 'F' Pantalla Completa | 'R' Reiniciar | 'Q' Salir"
         img_inst = fuente_pequena.render(texto_inst, True, (150, 150, 150))
         pantalla.blit(img_inst, (20, 10))
 
-        # Pasos del robot (Cola de instrucciones - Reposicionado entre grilla y botones)
-        # Calculamos la posición Y para que esté centrado entre el final de la grilla y el inicio de los botones
         fin_grilla_y = MARGEN_SUPERIOR + FILAS * TAMANO_CELDA
-        espacio_medio = (y_botones - fin_grilla_y)
-        y_plan = fin_grilla_y + (espacio_medio // 2) - 25 # Centrado verticalmente en el hueco
-        
-        x_plan = offset_x_global
+        y_plan = fin_grilla_y + ((y_botones - fin_grilla_y) // 2) - 25
         img_plan_label = fuente_pequena.render("Instrucciones:", True, COLOR_TEXTO)
-        pantalla.blit(img_plan_label, (x_plan, y_plan + 10))
+        pantalla.blit(img_plan_label, (offset_x_global, y_plan + 10))
         
-        x_iconos = x_plan + img_plan_label.get_width() + 15
+        x_iconos = offset_x_global + img_plan_label.get_width() + 15
         for instruccion in cola_instrucciones:
             icon = ICONOS_BOTONES.get(instruccion)
             if icon:
-                # Dibujar una versión más pequeña de los iconos en la cola
-                icon_peq = pygame.transform.smoothscale(icon, (40, 40))
-                pantalla.blit(icon_peq, (x_iconos, y_plan + 5))
-                x_iconos += 45 # Espaciado sin flechas
+                pantalla.blit(pygame.transform.smoothscale(icon, (40, 40)), (x_iconos, y_plan + 5))
+                x_iconos += 45
 
         if not meta_pos_lista and not robot.moviendose:
-            msg = fuente.render("🌟 ¡ERES GENIAL! 🌟", True, (255, 152, 0))
+            msg = fuente.render("¡FIN!", True, (255, 152, 0))
             pantalla.blit(msg, msg.get_rect(center=(pantalla_actual_w // 2, MARGEN_SUPERIOR // 2 + 10)))
+            if random.random() < 0.08: lista_fuegos.append(FuegosArtificiales(pantalla_actual_w, pantalla_actual_h))
 
-            # Lanzar fuegos artificiales
-            if random.random() < 0.08: # Probabilidad de lanzar uno nuevo cada frame
-                lista_fuegos.append(FuegosArtificiales(pantalla_actual_w, pantalla_actual_h))
-
-        # Actualizar y dibujar fuegos artificiales
         for f in lista_fuegos[:]:
-            f.actualizar()
-            f.dibujar(pantalla)
-            # Eliminar si ya terminó la explosión
-            if f.explotado and not f.particulas:
-                lista_fuegos.remove(f)
+            f.actualizar(); f.dibujar(pantalla)
+            if f.explotado and not f.particulas: lista_fuegos.remove(f)
 
         pygame.display.flip()
         reloj.tick(60)
