@@ -398,24 +398,34 @@ def main():
 
         # --- DIBUJAR ICONOS DE AYUDA EN CELDAS ADYACENTES ---
         if not robot.moviendose and meta_pos_lista:
+            t = pygame.time.get_ticks()
+            # Oscilación suave para la animación (de -6 a 6 píxeles)
+            oscilacion = math.sin(t * 0.01) * 6
+            
             adyacentes = [
-                ("ARRIBA", robot.grid_x, robot.grid_y - 1),
-                ("ABAJO", robot.grid_x, robot.grid_y + 1),
-                ("IZQUIERDA", robot.grid_x - 1, robot.grid_y),
-                ("DERECHA", robot.grid_x + 1, robot.grid_y)
+                ("ARRIBA", robot.grid_x, robot.grid_y - 1, 0, -1),
+                ("ABAJO", robot.grid_x, robot.grid_y + 1, 0, 1),
+                ("IZQUIERDA", robot.grid_x - 1, robot.grid_y, -1, 0),
+                ("DERECHA", robot.grid_x + 1, robot.grid_y, 1, 0)
             ]
-            for accion, col, fila in adyacentes:
+            for accion, col, fila, dx, dy in adyacentes:
                 if 0 <= col < COLUMNAS and 0 <= fila < FILAS:
                     icon = ICONOS_BOTONES.get(accion)
                     if icon:
-                        # Dibujar icono tenue como guía
+                        # Rect de la celda
                         rect_celda = pygame.Rect(offset_x_global + col * TAMANO_CELDA, MARGEN_SUPERIOR + fila * TAMANO_CELDA, TAMANO_CELDA, TAMANO_CELDA)
-                        # Redimensionar icono para la celda
+                        
+                        # Redimensionar icono
                         tam = int(TAMANO_CELDA * 0.4)
                         icon_guia = pygame.transform.smoothscale(icon, (tam, tam))
-                        # Hacerlo traslúcido
                         icon_guia.set_alpha(120)
-                        pantalla.blit(icon_guia, icon_guia.get_rect(center=rect_celda.center))
+                        
+                        # Calcular posición con animación en su dirección
+                        centro = list(rect_celda.center)
+                        centro[0] += dx * oscilacion
+                        centro[1] += dy * oscilacion
+                        
+                        pantalla.blit(icon_guia, icon_guia.get_rect(center=centro))
 
         robot.actualizar()
         robot.dibujar(pantalla, offset_x_global)
