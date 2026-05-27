@@ -138,11 +138,13 @@ class Robot:
         t = pygame.time.get_ticks()
         
         if self.moviendose:
-            self.bob = abs(math.sin(t * 0.015)) * 12
-            scale_y = 1.0 + math.sin(t * 0.015) * 0.1
+            # Animación de caminado más visible (más salto y más deformación)
+            self.bob = abs(math.sin(t * 0.015)) * 20 # Aumentado de 12 a 20
+            scale_y = 1.0 + math.sin(t * 0.015) * 0.15 # Aumentado de 0.1 a 0.15
         else:
-            self.bob = math.sin(t * 0.003) * 3
-            scale_y = 1.0 + math.sin(t * 0.003) * 0.02
+            # Respiración suave
+            self.bob = math.sin(t * 0.003) * 4
+            scale_y = 1.0 + math.sin(t * 0.003) * 0.03
 
         if self.imagen_original:
             w, h = self.imagen_original.get_size()
@@ -218,12 +220,18 @@ def cargar_recursos():
 def dibujar_meta(pantalla, x, y):
     if IMAGEN_META:
         t = pygame.time.get_ticks()
-        offset_meta = math.sin(t * 0.005) * 8
-        pulse = 1.0 + math.sin(t * 0.004) * 0.05
+        # Animación de "meta" más sutil (menos levitación y pulso)
+        offset_meta = math.sin(t * 0.005) * 4 # Reducido de 8 a 4
+        pulse = 1.0 + math.sin(t * 0.004) * 0.03 # Reducido de 0.05 a 0.03
+
+        # Crear superficie escalada para el pulso
         w, h = IMAGEN_META.get_size()
         img_pulsada = pygame.transform.smoothscale(IMAGEN_META, (int(w * pulse), int(h * pulse)))
+
         rect = img_pulsada.get_rect(center=(x + TAMANO_CELDA // 2, y + TAMANO_CELDA // 2 + offset_meta))
         pantalla.blit(img_pulsada, rect)
+    else:
+        pass
 
 class Boton:
     def __init__(self, x, y, ancho, alto, accion, color):
@@ -291,32 +299,29 @@ def main():
     
     personaje_actual = "robot.png"
     robot = Robot(0, 0, personaje_actual)
-    meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
-    cola_instrucciones, ejecutando, instruccion_actual, lista_fuegos = [], False, 0, []
+    meta_pos_lista = [(6, 3), (3, 2), (5, 0), (1, 3), (2, 0), (0, 2), (4, 1), (6, 0)]
+    lista_fuegos = []
 
     while True:
         tiempo_actual = pygame.time.get_ticks()
         pantalla_actual_w, pantalla_actual_h = pantalla.get_size()
         offset_x_global = (pantalla_actual_w - COLUMNAS * TAMANO_CELDA) // 2
         
-        # --- DISEÑO DE BOTONES TILO TECLADO ---
-        ancho_btn, alto_btn, espacio = 140, 85, 12
-        # Calculamos el centro para las flechas y el Play
+        # --- DISEÑO DE BOTONES (Sin Play, movimiento directo) ---
+        ancho_btn, alto_btn, espacio = 160, 100, 15
         ancho_cluster = (ancho_btn * 3) + (espacio * 2)
-        ancho_play, alto_play = 180, 110
-        ancho_total_central = ancho_cluster + 40 + ancho_play
         
-        x_base_central = (pantalla_actual_w - ancho_total_central) // 2
-        y_base = pantalla_actual_h - 110
+        x_base_central = (pantalla_actual_w - ancho_cluster) // 2
+        y_base = pantalla_actual_h - 130
         
-        # Botón de reinicio más pequeño en la esquina
-        ancho_reset, alto_reset = 100, 70
+        # Botón de reinicio en la esquina
+        ancho_reset, alto_reset = 120, 80
         x_reset = pantalla_actual_w - ancho_reset - 20
         y_reset = pantalla_actual_h - alto_reset - 20
         
         # Botones de Selección de Personaje (Top Derecha)
-        btn_robot = Boton(pantalla_actual_w - 240, 20, 100, 50, "ROBOT_SEL", (200, 200, 200))
-        btn_profe = Boton(pantalla_actual_w - 120, 20, 100, 50, "TEACHER_SEL", (200, 200, 200))
+        btn_robot = Boton(pantalla_actual_w - 280, 20, 120, 60, "ROBOT_SEL", (200, 200, 200))
+        btn_profe = Boton(pantalla_actual_w - 140, 20, 120, 60, "TEACHER_SEL", (200, 200, 200))
         
         botones = [
             # Fila Inferior (Flechas)
@@ -327,10 +332,7 @@ def main():
             # Fila Superior (Arriba)
             Boton(x_base_central + (ancho_btn + espacio), y_base - alto_btn - 8, ancho_btn, alto_btn, "ARRIBA", (129, 212, 250)),
             
-            # Botón PLAY
-            Boton(x_base_central + ancho_cluster + 40, y_base - (alto_play - alto_btn), ancho_play, alto_play, "PLAY", COLOR_EJECUTAR),
-            
-            # Botón REINICIAR (Esquina inferior derecha)
+            # Botón REINICIAR
             Boton(x_reset, y_reset, ancho_reset, alto_reset, "REINICIAR", (255, 204, 128)),
             
             # Selección de personaje
@@ -341,31 +343,23 @@ def main():
             if evento.type == pygame.QUIT:
                 pygame.quit(); sys.exit()
             
-            if evento.type == pygame.VIDEORESIZE:
-                # El offset se recalcula dinámicamente en el loop principal
-                pass
-
             if evento.type == pygame.MOUSEBUTTONDOWN:
                 for btn in botones:
                     if btn.clic(evento.pos):
                         btn.presionado = True
-                        if not ejecutando:
-                            if btn.accion == "PLAY":
-                                if cola_instrucciones:
-                                    ejecutando, instruccion_actual, ultimo_movimiento_tiempo = True, 0, tiempo_actual
-                            elif btn.accion == "REINICIAR":
-                                # Acción de reinicio manual por botón
-                                robot = Robot(0, 0, personaje_actual)
-                                meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
-                                cola_instrucciones, ejecutando, lista_fuegos = [], False, []
-                            elif btn.accion == "ROBOT_SEL":
-                                personaje_actual = "robot.png"
-                                robot.cambiar_imagen(personaje_actual)
-                            elif btn.accion == "TEACHER_SEL":
-                                personaje_actual = "fer.png"
-                                robot.cambiar_imagen(personaje_actual)
-                            else:
-                                cola_instrucciones.append(btn.accion)
+                        if btn.accion == "REINICIAR":
+                            robot = Robot(0, 0, personaje_actual)
+                            meta_pos_lista = [(6, 3), (3, 2), (5, 0), (1, 3), (2, 0), (0, 2), (4, 1), (6, 0)]
+                            lista_fuegos = []
+                        elif btn.accion == "ROBOT_SEL":
+                            personaje_actual = "robot.png"
+                            robot.cambiar_imagen(personaje_actual)
+                        elif btn.accion == "TEACHER_SEL":
+                            personaje_actual = "fer.png"
+                            robot.cambiar_imagen(personaje_actual)
+                        elif btn.accion in ["ARRIBA", "ABAJO", "IZQUIERDA", "DERECHA"]:
+                            # MOVIMIENTO INMEDIATO
+                            robot.mover(btn.accion)
             
             if evento.type == pygame.MOUSEBUTTONUP:
                 for btn in botones:
@@ -378,17 +372,8 @@ def main():
                     pygame.display.toggle_fullscreen()
                 if evento.key == pygame.K_r:
                     robot = Robot(0, 0, personaje_actual)
-                    meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
-                    cola_instrucciones, ejecutando, lista_fuegos = [], False, []
-
-        if ejecutando and not robot.moviendose:
-            if tiempo_actual - ultimo_movimiento_tiempo > 500:
-                if instruccion_actual < len(cola_instrucciones):
-                    robot.mover(cola_instrucciones[instruccion_actual])
-                    instruccion_actual += 1
-                    ultimo_movimiento_tiempo = tiempo_actual
-                else:
-                    ejecutando, cola_instrucciones = False, []
+                    meta_pos_lista = [(6, 3), (3, 2), (5, 0), (1, 3), (2, 0), (0, 2), (4, 1), (6, 0)]
+                    lista_fuegos = []
 
         pantalla.fill(COLOR_FONDO)
         for fila in range(FILAS):
@@ -396,20 +381,6 @@ def main():
                 rect = pygame.Rect(offset_x_global + col * TAMANO_CELDA, MARGEN_SUPERIOR + fila * TAMANO_CELDA, TAMANO_CELDA, TAMANO_CELDA)
                 pygame.draw.rect(pantalla, COLOR_GRILLA, rect, 0)
                 pygame.draw.rect(pantalla, (255, 255, 255), rect, 2)
-
-        if cola_instrucciones and not ejecutando:
-            temp_x, temp_y, puntos_ruta = robot.grid_x, robot.grid_y, []
-            for inst in cola_instrucciones:
-                if inst == "ARRIBA" and temp_y > 0: temp_y -= 1
-                elif inst == "ABAJO" and temp_y < FILAS - 1: temp_y += 1
-                elif inst == "IZQUIERDA" and temp_x > 0: temp_x -= 1
-                elif inst == "DERECHA" and temp_x < COLUMNAS - 1: temp_x += 1
-                puntos_ruta.append((offset_x_global + temp_x * TAMANO_CELDA + TAMANO_CELDA // 2, MARGEN_SUPERIOR + temp_y * TAMANO_CELDA + TAMANO_CELDA // 2))
-            if puntos_ruta:
-                inicio_linea = (robot.pix_x + offset_x_global + TAMANO_CELDA // 2, robot.pix_y + MARGEN_SUPERIOR + TAMANO_CELDA // 2)
-                puntos_completos = [inicio_linea] + puntos_ruta
-                for p in puntos_ruta: pygame.draw.circle(pantalla, (255, 112, 67, 100), p, 8)
-                if len(puntos_completos) > 1: pygame.draw.lines(pantalla, (255, 112, 67), False, puntos_completos, 3)
 
         for fila in range(FILAS):
             for col in range(COLUMNAS):
