@@ -23,13 +23,13 @@ if sys.platform == "win32":
 # ==========================================================
 
 # Configuración General
-ANCHO_VENTANA = 1200
-ALTO_VENTANA = 900
+ANCHO_VENTANA = 1400
+ALTO_VENTANA = 950
 COLUMNAS = 7
 FILAS = 4
-MARGEN_SUPERIOR = 100
-TAMANO_CELDA = 140
-VELOCIDAD_MOVIMIENTO = 8 
+MARGEN_SUPERIOR = 80
+TAMANO_CELDA = 180
+VELOCIDAD_MOVIMIENTO = 10 
 
 COLOR_FONDO = (255, 253, 231)
 COLOR_GRILLA = (224, 224, 224)
@@ -220,14 +220,9 @@ def main():
                 if gy > robot.grid_y: accion_sug, dy_sug, ang_sug = "ABAJO", 1, 180
                 else: accion_sug, dy_sug, ang_sug = "ARRIBA", -1, 0
 
-        # --- UI BOTONES ---
-        a_b, al_b, esp = 160, 100, 15
-        x_b = (pantalla_w - (a_b * 3 + esp * 2)) // 2
-        y_b = pantalla_h - 130
+        # --- UI BOTONES (Sin Flechas, solo configuración) ---
         x_r, y_r = pantalla_w - 140, pantalla_h - 100
         botones = [
-            Boton(x_b, y_b, a_b, al_b, "IZQUIERDA", (255, 245, 157)), Boton(x_b + a_b + esp, y_b, a_b, al_b, "ABAJO", (244, 143, 177)),
-            Boton(x_b + (a_b + esp)*2, y_b, a_b, al_b, "DERECHA", (165, 214, 167)), Boton(x_b + a_b + esp, y_b - al_b - 8, a_b, al_b, "ARRIBA", (129, 212, 250)),
             Boton(x_r, y_r, 120, 80, "REINICIAR", (255, 204, 128)),
             Boton(pantalla_w - 280, 20, 120, 60, "ROBOT_SEL", (200, 200, 200)), Boton(pantalla_w - 140, 20, 120, 60, "TEACHER_SEL", (200, 200, 200))
         ]
@@ -243,8 +238,8 @@ def main():
                             robot, meta_pos_lista, lista_fuegos = Robot(0, 0, personaje_actual), [(6, 3), (3, 2), (5, 0), (1, 3), (2, 0), (0, 2), (4, 1), (6, 0)], []
                         elif b.accion == "ROBOT_SEL": personaje_actual = "robot.png"; robot.cambiar_imagen(personaje_actual)
                         elif b.accion == "TEACHER_SEL": personaje_actual = "fer.png"; robot.cambiar_imagen(personaje_actual)
-                        elif b.accion in ["ARRIBA", "ABAJO", "IZQUIERDA", "DERECHA"]: robot.mover(b.accion)
                 if not clic_p and not robot.moviendose:
+                    # Clic en la grilla para moverse
                     r_rob = pygame.Rect(offset_x + robot.grid_x * TAMANO_CELDA, MARGEN_SUPERIOR + robot.grid_y * TAMANO_CELDA, TAMANO_CELDA, TAMANO_CELDA)
                     if r_rob.collidepoint(ev.pos) and accion_sug: robot.mover(accion_sug)
                     else:
