@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+env/
+venv/
+*.py-e
+convert_images.py
+generate_sprite.py
+generate_icons.py
+fix_transparency.py
