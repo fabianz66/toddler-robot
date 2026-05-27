@@ -229,7 +229,14 @@ class Boton:
         self.rect = pygame.Rect(x, y, ancho, alto)
         self.accion = accion
         self.color = color
-        self.icono = ICONOS_BOTONES.get(accion)
+        # Escalar el icono proporcionalmente al tamaño del botón
+        self.icono = None
+        base_icon = ICONOS_BOTONES.get(accion)
+        if base_icon:
+            # El icono ocupará el 65% del lado más corto del botón para dejar un margen
+            padding = min(ancho, alto) * 0.35
+            target_size = int(min(ancho, alto) - padding)
+            self.icono = pygame.transform.smoothscale(base_icon, (target_size, target_size))
 
     def dibujar(self, pantalla):
         mouse_pos = pygame.mouse.get_pos()
@@ -276,23 +283,33 @@ def main():
         
         # --- DISEÑO DE BOTONES TILO TECLADO ---
         ancho_btn, alto_btn, espacio = 140, 85, 12
-        # Calculamos el ancho total del bloque (3 de flechas + 2 de acción + espacios)
-        ancho_total_ui = (ancho_btn * 5) + (espacio * 6)
-        x_base = (pantalla_actual_w - ancho_total_ui) // 2
-        y_base = pantalla_actual_h - 110 # Fila de abajo
+        # Calculamos el centro para las flechas y el Play
+        ancho_cluster = (ancho_btn * 3) + (espacio * 2)
+        ancho_play, alto_play = 180, 110
+        ancho_total_central = ancho_cluster + 40 + ancho_play
+        
+        x_base_central = (pantalla_actual_w - ancho_total_central) // 2
+        y_base = pantalla_actual_h - 110
+        
+        # Botón de reinicio más pequeño en la esquina
+        ancho_reset, alto_reset = 100, 70
+        x_reset = pantalla_actual_w - ancho_reset - 20
+        y_reset = pantalla_actual_h - alto_reset - 20
         
         botones = [
             # Fila Inferior (Flechas)
-            Boton(x_base, y_base, ancho_btn, alto_btn, "IZQUIERDA", (255, 245, 157)),
-            Boton(x_base + (ancho_btn + espacio), y_base, ancho_btn, alto_btn, "ABAJO", (244, 143, 177)),
-            Boton(x_base + (ancho_btn + espacio) * 2, y_base, ancho_btn, alto_btn, "DERECHA", (165, 214, 167)),
+            Boton(x_base_central, y_base, ancho_btn, alto_btn, "IZQUIERDA", (255, 245, 157)),
+            Boton(x_base_central + (ancho_btn + espacio), y_base, ancho_btn, alto_btn, "ABAJO", (244, 143, 177)),
+            Boton(x_base_central + (ancho_btn + espacio) * 2, y_base, ancho_btn, alto_btn, "DERECHA", (165, 214, 167)),
             
-            # Fila Superior (Arriba - Centrada sobre Abajo)
-            Boton(x_base + (ancho_btn + espacio), y_base - alto_btn - 8, ancho_btn, alto_btn, "ARRIBA", (129, 212, 250)),
+            # Fila Superior (Arriba)
+            Boton(x_base_central + (ancho_btn + espacio), y_base - alto_btn - 8, ancho_btn, alto_btn, "ARRIBA", (129, 212, 250)),
             
-            # Botones de Acción (A la derecha)
-            Boton(x_base + (ancho_btn + espacio) * 3 + 30, y_base, ancho_btn, alto_btn, "PLAY", COLOR_EJECUTAR),
-            Boton(x_base + (ancho_btn + espacio) * 4 + 30, y_base, ancho_btn, alto_btn, "REINICIAR", (255, 204, 128))
+            # Botón PLAY
+            Boton(x_base_central + ancho_cluster + 40, y_base - (alto_play - alto_btn), ancho_play, alto_play, "PLAY", COLOR_EJECUTAR),
+            
+            # Botón REINICIAR (Esquina inferior derecha)
+            Boton(x_reset, y_reset, ancho_reset, alto_reset, "REINICIAR", (255, 204, 128))
         ]
 
         for evento in pygame.event.get():
@@ -372,21 +389,10 @@ def main():
 
         for btn in botones: btn.dibujar(pantalla)
             
+        # UI Info (Ayuda en la parte superior)
         texto_inst = "Presiona 'F' Pantalla Completa | 'R' Reiniciar | 'Q' Salir"
         img_inst = fuente_pequena.render(texto_inst, True, (150, 150, 150))
         pantalla.blit(img_inst, (20, 10))
-
-        fin_grilla_y = MARGEN_SUPERIOR + FILAS * TAMANO_CELDA
-        y_plan = fin_grilla_y + ((y_base - fin_grilla_y) // 2) - 25
-        img_plan_label = fuente_pequena.render("Instrucciones:", True, COLOR_TEXTO)
-        pantalla.blit(img_plan_label, (offset_x_global, y_plan + 10))
-        
-        x_iconos = offset_x_global + img_plan_label.get_width() + 15
-        for instruccion in cola_instrucciones:
-            icon = ICONOS_BOTONES.get(instruccion)
-            if icon:
-                pantalla.blit(pygame.transform.smoothscale(icon, (40, 40)), (x_iconos, y_plan + 5))
-                x_iconos += 45
 
         if not meta_pos_lista and not robot.moviendose:
             msg = fuente.render("¡FIN!", True, (255, 152, 0))
