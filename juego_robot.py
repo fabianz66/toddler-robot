@@ -304,13 +304,32 @@ def main():
                 if evento.key == pygame.K_f:
                     fullscreen = not fullscreen
                     if fullscreen:
-                        pantalla = pygame.display.set_mode((info.current_w, info.current_h), pygame.FULLSCREEN)
+                        # Obtener resolución actual para modo pantalla completa
+                        res = pygame.display.Info()
+                        pantalla = pygame.display.set_mode((res.current_w, res.current_h), pygame.FULLSCREEN)
                     else:
                         pantalla = pygame.display.set_mode((ANCHO_VENTANA, ALTO_VENTANA), pygame.RESIZABLE)
+                    
+                    # REPOSICIONAR ROBOT INMEDIATAMENTE
+                    if not ejecutando and not robot.moviendose:
+                        # Recalcular offset basado en la nueva pantalla
+                        nuevo_w = pantalla.get_width()
+                        nuevo_offset_x = (nuevo_w - COLUMNAS * TAMANO_CELDA) // 2
+                        robot.pix_x = robot.grid_x * TAMANO_CELDA + nuevo_offset_x
+                        robot.target_pix_x = robot.pix_x
+                
                 if evento.key == pygame.K_r:
+                    # REINICIO TOTAL
                     robot = Robot(0, 0)
-                    robot.pix_x = 0 * TAMANO_CELDA + offset_x_global
-                    robot.target_pix_x = robot.pix_x
+                    # Recalcular posición inicial exacta
+                    offset_x_global = (pantalla.get_width() - COLUMNAS * TAMANO_CELDA) // 2
+                    robot.pix_x = robot.grid_x * TAMANO_CELDA + offset_x_global
+                    robot.pix_y = robot.grid_y * TAMANO_CELDA + MARGEN_SUPERIOR
+                    robot.target_pix_x, robot.target_pix_y = robot.pix_x, robot.pix_y
+                    
+                    # Restaurar metas
+                    meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
+                    
                     cola_instrucciones = []
                     ejecutando = False
 
@@ -374,7 +393,7 @@ def main():
                 x_iconos += 45 # Espaciado sin flechas
 
         if not meta_pos_lista and not robot.moviendose:
-            msg = fuente.render("🌟 ¡ERES GENIAL! 🌟", True, (255, 152, 0))
+            msg = fuente.render("¡FIN!", True, (255, 152, 0))
             pantalla.blit(msg, msg.get_rect(center=(pantalla_actual_w // 2, MARGEN_SUPERIOR // 2 + 10)))
 
         pygame.display.flip()
