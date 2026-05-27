@@ -38,38 +38,28 @@ class Robot:
         self.angulo = 0
         self.angulo_objetivo = 0
         
-        # --- CARGAR SPRITE SHEET DE CAMINADO ---
+        # --- CARGAR IMAGEN DE ROBOT ---
         try:
-            sheet = pygame.image.load("character_walking.png").convert_alpha()
-            sheet_w, sheet_h = sheet.get_size()
-            frame_w = sheet_w // 4
-            self.frames = []
-            for i in range(4):
-                frame = sheet.subsurface((i * frame_w, 0, frame_w, sheet_h))
-                # Escalar a tamaño de celda
-                self.frames.append(pygame.transform.smoothscale(frame, (TAMANO_CELDA - 10, TAMANO_CELDA - 10)))
-            self.frame_actual = 0
-            self.imagen = self.frames[0]
+            self.imagen_original = pygame.image.load("robot.png").convert_alpha()
+            # Escalar imagen al tamaño de la celda
+            self.imagen_original = pygame.transform.smoothscale(self.imagen_original, (TAMANO_CELDA - 15, TAMANO_CELDA - 15))
+            self.imagen_dibujar = self.imagen_original
         except Exception as e:
-            print(f"Error cargando character_walking.png: {e}")
-            self.frames = []
-            self.imagen = None
+            print(f"Error cargando robot.png: {e}")
+            self.imagen_original = None
+            self.imagen_dibujar = None
 
     def mover(self, direccion, offset_x):
         if self.moviendose: return
         
         if direccion == "ARRIBA" and self.grid_y > 0:
             self.grid_y -= 1
-            self.angulo_objetivo = 0
         elif direccion == "ABAJO" and self.grid_y < FILAS - 1:
             self.grid_y += 1
-            self.angulo_objetivo = 180
         elif direccion == "IZQUIERDA" and self.grid_x > 0:
             self.grid_x -= 1
-            self.angulo_objetivo = 90
         elif direccion == "DERECHA" and self.grid_x < COLUMNAS - 1:
             self.grid_x += 1
-            self.angulo_objetivo = 270
         
         self.target_pix_x = self.grid_x * TAMANO_CELDA + offset_x
         self.target_pix_y = self.grid_y * TAMANO_CELDA + MARGEN_SUPERIOR
@@ -78,20 +68,18 @@ class Robot:
     def actualizar(self):
         t = pygame.time.get_ticks()
         
-        # Ciclo de frames y bobbing
         if self.moviendose:
-            # Alternar entre frame neutral (0), squash (1) y stretch (2)
-            # Esto crea un efecto de "pasos" sin rotar el cuerpo
-            self.frame_actual = (t // 120) % 3
-            self.bob = abs(math.sin(t * 0.015)) * 10
+            # Animación de caminado procedural
+            self.bob = abs(math.sin(t * 0.015)) * 12
+            scale_y = 1.0 + math.sin(t * 0.015) * 0.1
         else:
-            self.frame_actual = 0
             # Respiración suave
             self.bob = math.sin(t * 0.003) * 3
+            scale_y = 1.0 + math.sin(t * 0.003) * 0.02
 
-        # Asignar imagen sin rotación
-        if self.frames:
-            self.imagen_dibujar = self.frames[self.frame_actual]
+        if self.imagen_original:
+            w, h = self.imagen_original.get_size()
+            self.imagen_dibujar = pygame.transform.smoothscale(self.imagen_original, (int(w), int(h * scale_y)))
 
         dx = self.target_pix_x - self.pix_x
         dy = self.target_pix_y - self.pix_y
@@ -152,9 +140,12 @@ def cargar_recursos():
         except Exception as e:
             print(f"No se pudo cargar cheer.mp3: {e}")
 
-        # Meta
-        img = pygame.image.load("hat.png").convert_alpha()
-        IMAGEN_META = pygame.transform.smoothscale(img, (TAMANO_CELDA - 20, TAMANO_CELDA - 20))
+        # Meta (Cricri)
+        try:
+            img = pygame.image.load("cricri.png").convert_alpha()
+            IMAGEN_META = pygame.transform.smoothscale(img, (TAMANO_CELDA - 20, TAMANO_CELDA - 20))
+        except Exception as e:
+            print(f"Error cargando cricri.png: {e}")
         
         # Iconos de botones (Mapeo explícito)
         mapeo = {
@@ -177,11 +168,17 @@ def cargar_recursos():
 
 def dibujar_meta(pantalla, x, y):
     if IMAGEN_META:
-        rect = IMAGEN_META.get_rect(center=(x + TAMANO_CELDA // 2, y + TAMANO_CELDA // 2))
-        # Animación suave de "meta" (levitar)
-        offset_meta = math.sin(pygame.time.get_ticks() * 0.005) * 5
-        rect.y += offset_meta
-        pantalla.blit(IMAGEN_META, rect)
+        t = pygame.time.get_ticks()
+        # Animación de "meta" (levitar + pulso suave)
+        offset_meta = math.sin(t * 0.005) * 8
+        pulse = 1.0 + math.sin(t * 0.004) * 0.05
+        
+        # Crear superficie escalada para el pulso
+        w, h = IMAGEN_META.get_size()
+        img_pulsada = pygame.transform.smoothscale(IMAGEN_META, (int(w * pulse), int(h * pulse)))
+        
+        rect = img_pulsada.get_rect(center=(x + TAMANO_CELDA // 2, y + TAMANO_CELDA // 2 + offset_meta))
+        pantalla.blit(img_pulsada, rect)
     else:
         centro = (x + TAMANO_CELDA // 2, y + TAMANO_CELDA // 2)
         # Una estrella o trofeo simple
@@ -352,31 +349,29 @@ def main():
         for btn in botones:
             btn.dibujar(pantalla)
             
-        # UI Info
+        # UI Info (Ayuda en la parte superior)
         texto_inst = "Presiona 'F' para Pantalla Completa | 'R' para Reiniciar"
         img_inst = fuente_pequena.render(texto_inst, True, (150, 150, 150))
         pantalla.blit(img_inst, (20, 10))
 
-        # Pasos del robot (Cola de instrucciones con iconos)
+        # Pasos del robot (Cola de instrucciones - Reposicionado entre grilla y botones)
+        # Calculamos la posición Y para que esté centrado entre el final de la grilla y el inicio de los botones
+        fin_grilla_y = MARGEN_SUPERIOR + FILAS * TAMANO_CELDA
+        espacio_medio = (y_botones - fin_grilla_y)
+        y_plan = fin_grilla_y + (espacio_medio // 2) - 25 # Centrado verticalmente en el hueco
+        
         x_plan = offset_x_global
-        y_plan = MARGEN_SUPERIOR - 45
         img_plan_label = fuente_pequena.render("Instrucciones:", True, COLOR_TEXTO)
         pantalla.blit(img_plan_label, (x_plan, y_plan + 10))
         
         x_iconos = x_plan + img_plan_label.get_width() + 15
-        for i, instruccion in enumerate(cola_instrucciones):
+        for instruccion in cola_instrucciones:
             icon = ICONOS_BOTONES.get(instruccion)
             if icon:
                 # Dibujar una versión más pequeña de los iconos en la cola
-                icon_peq = pygame.transform.smoothscale(icon, (35, 35))
+                icon_peq = pygame.transform.smoothscale(icon, (40, 40))
                 pantalla.blit(icon_peq, (x_iconos, y_plan + 5))
-                x_iconos += 40
-                
-                # Dibujar flecha de unión "->"
-                if i < len(cola_instrucciones) - 1:
-                    img_flecha = fuente_pequena.render(">", True, (200, 200, 200))
-                    pantalla.blit(img_flecha, (x_iconos, y_plan + 8))
-                    x_iconos += 20
+                x_iconos += 45 # Espaciado sin flechas
 
         if not meta_pos_lista and not robot.moviendose:
             msg = fuente.render("🌟 ¡ERES GENIAL! 🌟", True, (255, 152, 0))
