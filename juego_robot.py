@@ -93,7 +93,7 @@ class FuegosArtificiales:
                 p.dibujar(pantalla)
 
 class Robot:
-    def __init__(self, x, y):
+    def __init__(self, x, y, imagen_path="robot.png"):
         self.grid_x = x
         self.grid_y = y
         # Coordenadas en píxeles RELATIVAS al inicio de la grilla (0,0 del tablero)
@@ -105,14 +105,15 @@ class Robot:
         self.angulo = 0
         self.angulo_objetivo = 0
         self.bob = 0
-        
-        # --- CARGAR IMAGEN DE ROBOT ---
+        self.cambiar_imagen(imagen_path)
+
+    def cambiar_imagen(self, path):
         try:
-            self.imagen_original = pygame.image.load("robot.png").convert_alpha()
+            self.imagen_original = pygame.image.load(path).convert_alpha()
             self.imagen_original = pygame.transform.smoothscale(self.imagen_original, (TAMANO_CELDA - 15, TAMANO_CELDA - 15))
             self.imagen_dibujar = self.imagen_original
         except Exception as e:
-            print(f"Error cargando robot.png: {e}")
+            print(f"Error cargando {path}: {e}")
             self.imagen_original = None
             self.imagen_dibujar = None
 
@@ -253,8 +254,15 @@ class Boton:
             pantalla.blit(self.icono, rect_icon)
         else:
             try:
-                f = pygame.font.SysFont("Arial", 24)
-                img = f.render(self.accion, True, COLOR_TEXTO)
+                # Mapeo de texto para botones sin icono
+                textos = {
+                    "ROBOT_SEL": "Robot",
+                    "TEACHER_SEL": "Teacher"
+                }
+                txt_mostrar = textos.get(self.accion, self.accion)
+                
+                f = pygame.font.SysFont("Arial", 24, bold=True)
+                img = f.render(txt_mostrar, True, COLOR_TEXTO)
                 pantalla.blit(img, img.get_rect(center=self.rect.center))
             except: pass
 
@@ -272,7 +280,8 @@ def main():
     fuente = pygame.font.SysFont("Comic Sans MS", 36, bold=True)
     fuente_pequena = pygame.font.SysFont("Comic Sans MS", 24)
     
-    robot = Robot(0, 0)
+    personaje_actual = "robot.png"
+    robot = Robot(0, 0, personaje_actual)
     meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
     cola_instrucciones, ejecutando, instruccion_actual, lista_fuegos = [], False, 0, []
 
@@ -296,6 +305,10 @@ def main():
         x_reset = pantalla_actual_w - ancho_reset - 20
         y_reset = pantalla_actual_h - alto_reset - 20
         
+        # Botones de Selección de Personaje (Top Derecha)
+        btn_robot = Boton(pantalla_actual_w - 240, 20, 100, 50, "ROBOT_SEL", (200, 200, 200))
+        btn_profe = Boton(pantalla_actual_w - 120, 20, 100, 50, "TEACHER_SEL", (200, 200, 200))
+        
         botones = [
             # Fila Inferior (Flechas)
             Boton(x_base_central, y_base, ancho_btn, alto_btn, "IZQUIERDA", (255, 245, 157)),
@@ -309,7 +322,10 @@ def main():
             Boton(x_base_central + ancho_cluster + 40, y_base - (alto_play - alto_btn), ancho_play, alto_play, "PLAY", COLOR_EJECUTAR),
             
             # Botón REINICIAR (Esquina inferior derecha)
-            Boton(x_reset, y_reset, ancho_reset, alto_reset, "REINICIAR", (255, 204, 128))
+            Boton(x_reset, y_reset, ancho_reset, alto_reset, "REINICIAR", (255, 204, 128)),
+            
+            # Selección de personaje
+            btn_robot, btn_profe
         ]
 
         for evento in pygame.event.get():
@@ -328,9 +344,15 @@ def main():
                                 ejecutando, instruccion_actual, ultimo_movimiento_tiempo = True, 0, tiempo_actual
                         elif btn.accion == "REINICIAR":
                             # Acción de reinicio manual por botón
-                            robot = Robot(0, 0)
+                            robot = Robot(0, 0, personaje_actual)
                             meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
                             cola_instrucciones, ejecutando, lista_fuegos = [], False, []
+                        elif btn.accion == "ROBOT_SEL":
+                            personaje_actual = "robot.png"
+                            robot.cambiar_imagen(personaje_actual)
+                        elif btn.accion == "TEACHER_SEL":
+                            personaje_actual = "fer.png"
+                            robot.cambiar_imagen(personaje_actual)
                         else:
                             cola_instrucciones.append(btn.accion)
             
@@ -340,7 +362,7 @@ def main():
                 if evento.key == pygame.K_f:
                     pygame.display.toggle_fullscreen()
                 if evento.key == pygame.K_r:
-                    robot = Robot(0, 0)
+                    robot = Robot(0, 0, personaje_actual)
                     meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
                     cola_instrucciones, ejecutando, lista_fuegos = [], False, []
 
