@@ -219,17 +219,9 @@ def cargar_recursos():
 
 def dibujar_meta(pantalla, x, y):
     if IMAGEN_META:
-        t = pygame.time.get_ticks()
-        # Animación de "meta" más sutil (menos levitación y pulso)
-        offset_meta = math.sin(t * 0.005) * 4 # Reducido de 8 a 4
-        pulse = 1.0 + math.sin(t * 0.004) * 0.03 # Reducido de 0.05 a 0.03
-
-        # Crear superficie escalada para el pulso
-        w, h = IMAGEN_META.get_size()
-        img_pulsada = pygame.transform.smoothscale(IMAGEN_META, (int(w * pulse), int(h * pulse)))
-
-        rect = img_pulsada.get_rect(center=(x + TAMANO_CELDA // 2, y + TAMANO_CELDA // 2 + offset_meta))
-        pantalla.blit(img_pulsada, rect)
+        # Dibujar meta estática centrada en la celda
+        rect = IMAGEN_META.get_rect(center=(x + TAMANO_CELDA // 2, y + TAMANO_CELDA // 2))
+        pantalla.blit(IMAGEN_META, rect)
     else:
         pass
 
