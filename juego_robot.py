@@ -2,6 +2,7 @@ import pygame
 import sys
 import time
 import math
+import random
 
 # ==========================================================
 # NOTA DE INSTALACIÓN:
@@ -25,6 +26,60 @@ COLOR_ROBOT = (255, 112, 67)  # Naranja robótico
 COLOR_META = (76, 175, 80)    # Verde meta
 COLOR_TEXTO = (62, 39, 35)
 COLOR_EJECUTAR = (255, 213, 79)
+
+class Particula:
+    def __init__(self, x, y, color):
+        self.x = x
+        self.y = y
+        self.color = color
+        angulo = random.uniform(0, math.pi * 2)
+        velocidad = random.uniform(2, 7)
+        self.vx = math.cos(angulo) * velocidad
+        self.vy = math.sin(angulo) * velocidad
+        self.vida = 255
+        self.gravedad = 0.15
+
+    def actualizar(self):
+        self.x += self.vx
+        self.y += self.vy
+        self.vy += self.gravedad
+        self.vida -= 4
+
+    def dibujar(self, pantalla):
+        if self.vida > 0:
+            # Dibujar un pequeño destello con el color desvaneciéndose
+            # Nota: pygame.draw.circle no soporta alpha directo sin una superficie especial,
+            # pero para un juego infantil el efecto visual es suficiente.
+            pygame.draw.circle(pantalla, self.color, (int(self.x), int(self.y)), random.randint(2, 4))
+
+class FuegosArtificiales:
+    def __init__(self, ancho, alto):
+        self.x = random.randint(100, ancho - 100)
+        self.y = alto
+        self.target_y = random.randint(100, alto // 2)
+        self.color = (random.randint(100, 255), random.randint(100, 255), random.randint(100, 255))
+        self.velocidad = random.randint(10, 15)
+        self.explotado = False
+        self.particulas = []
+
+    def actualizar(self):
+        if not self.explotado:
+            self.y -= self.velocidad
+            if self.y <= self.target_y:
+                self.explotado = True
+                for _ in range(50):
+                    self.particulas.append(Particula(self.x, self.y, self.color))
+        else:
+            for p in self.particulas:
+                p.actualizar()
+            self.particulas = [p for p in self.particulas if p.vida > 0]
+
+    def dibujar(self, pantalla):
+        if not self.explotado:
+            pygame.draw.circle(pantalla, self.color, (int(self.x), int(self.y)), 5)
+        else:
+            for p in self.particulas:
+                p.dibujar(pantalla)
 
 class Robot:
     def __init__(self, x, y):
@@ -252,6 +307,9 @@ def main():
     ejecutando = False
     instruccion_actual = 0
     
+    # Fuegos artificiales
+    lista_fuegos = []
+    
     # Ajustar posición inicial del robot según el centro
     offset_x_global = (pantalla_actual_w - COLUMNAS * TAMANO_CELDA) // 2
     robot.pix_x = robot.grid_x * TAMANO_CELDA + offset_x_global
@@ -332,6 +390,7 @@ def main():
                     
                     cola_instrucciones = []
                     ejecutando = False
+                    lista_fuegos = [] # Limpiar fuegos artificiales
 
         if ejecutando and not robot.moviendose:
             if tiempo_actual - ultimo_movimiento_tiempo > 500:
@@ -393,8 +452,20 @@ def main():
                 x_iconos += 45 # Espaciado sin flechas
 
         if not meta_pos_lista and not robot.moviendose:
-            msg = fuente.render("¡FIN!", True, (255, 152, 0))
+            msg = fuente.render("🌟 ¡ERES GENIAL! 🌟", True, (255, 152, 0))
             pantalla.blit(msg, msg.get_rect(center=(pantalla_actual_w // 2, MARGEN_SUPERIOR // 2 + 10)))
+
+            # Lanzar fuegos artificiales
+            if random.random() < 0.08: # Probabilidad de lanzar uno nuevo cada frame
+                lista_fuegos.append(FuegosArtificiales(pantalla_actual_w, pantalla_actual_h))
+
+        # Actualizar y dibujar fuegos artificiales
+        for f in lista_fuegos[:]:
+            f.actualizar()
+            f.dibujar(pantalla)
+            # Eliminar si ya terminó la explosión
+            if f.explotado and not f.particulas:
+                lista_fuegos.remove(f)
 
         pygame.display.flip()
         reloj.tick(60)
