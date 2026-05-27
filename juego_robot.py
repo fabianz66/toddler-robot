@@ -27,7 +27,7 @@ ANCHO_VENTANA = 1400
 ALTO_VENTANA = 950
 COLUMNAS = 7
 FILAS = 4
-MARGEN_SUPERIOR = 80
+MARGEN_SUPERIOR = 120 # Espacio para cabecera
 TAMANO_CELDA = 180
 VELOCIDAD_MOVIMIENTO = 10 
 
@@ -220,12 +220,12 @@ def main():
                 if gy > robot.grid_y: accion_sug, dy_sug, ang_sug = "ABAJO", 1, 180
                 else: accion_sug, dy_sug, ang_sug = "ARRIBA", -1, 0
 
-        # --- UI BOTONES (Sin Flechas, solo configuración) ---
-        x_r, y_r = pantalla_w - 140, pantalla_h - 100
-        botones = [
-            Boton(x_r, y_r, 120, 80, "REINICIAR", (255, 204, 128)),
-            Boton(pantalla_w - 280, 20, 120, 60, "ROBOT_SEL", (200, 200, 200)), Boton(pantalla_w - 140, 20, 120, 60, "TEACHER_SEL", (200, 200, 200))
-        ]
+        # --- UI BOTONES (Fuera de la grilla) ---
+        an_s, al_s = 130, 60
+        btn_rob = Boton(20, 30, an_s, al_s, "ROBOT_SEL", (200, 200, 200))
+        btn_pro = Boton(20 + an_s + 15, 30, an_s, al_s, "TEACHER_SEL", (200, 200, 200))
+        btn_res = Boton(pantalla_w - an_s - 20, 30, an_s, al_s, "REINICIAR", (255, 204, 128))
+        botones = [btn_rob, btn_pro, btn_res]
 
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT: pygame.quit(); sys.exit()
@@ -239,7 +239,6 @@ def main():
                         elif b.accion == "ROBOT_SEL": personaje_actual = "robot.png"; robot.cambiar_imagen(personaje_actual)
                         elif b.accion == "TEACHER_SEL": personaje_actual = "fer.png"; robot.cambiar_imagen(personaje_actual)
                 if not clic_p and not robot.moviendose:
-                    # Clic en la grilla para moverse
                     r_rob = pygame.Rect(offset_x + robot.grid_x * TAMANO_CELDA, MARGEN_SUPERIOR + robot.grid_y * TAMANO_CELDA, TAMANO_CELDA, TAMANO_CELDA)
                     if r_rob.collidepoint(ev.pos) and accion_sug: robot.mover(accion_sug)
                     else:
@@ -277,9 +276,14 @@ def main():
         if p_r in meta_pos_lista and not robot.moviendose:
             meta_pos_lista.remove(p_r)
             if SONIDO_CHEER: SONIDO_CHEER.play()
+        
         for b in botones: b.dibujar(pantalla)
-        p_inst = fuente_pequena.render("Presiona 'F' Pantalla Completa | 'R' Reiniciar | 'Q' Salir", True, (150, 150, 150))
-        pantalla.blit(p_inst, (20, 10))
+        
+        fin_grilla_y = MARGEN_SUPERIOR + FILAS * TAMANO_CELDA
+        y_ayuda = fin_grilla_y + (pantalla_h - fin_grilla_y) // 2
+        p_inst = fuente_pequena.render("F: Pantalla Completa | R: Reiniciar | Q: Salir", True, (150, 150, 150))
+        pantalla.blit(p_inst, p_inst.get_rect(center=(pantalla_w // 2, y_ayuda)))
+
         if not meta_pos_lista and not robot.moviendose:
             msg = fuente.render("¡FIN!", True, (255, 152, 0))
             pantalla.blit(msg, msg.get_rect(center=(pantalla_w // 2, MARGEN_SUPERIOR // 2 + 10)))
