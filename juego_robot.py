@@ -336,9 +336,11 @@ def main():
                 pygame.quit(); sys.exit()
             
             if evento.type == pygame.MOUSEBUTTONDOWN:
+                clic_procesado = False
                 for btn in botones:
                     if btn.clic(evento.pos):
                         btn.presionado = True
+                        clic_procesado = True
                         if btn.accion == "REINICIAR":
                             robot = Robot(0, 0, personaje_actual)
                             meta_pos_lista = [(6, 3), (3, 2), (5, 0), (1, 3), (2, 0), (0, 2), (4, 1), (6, 0)]
@@ -352,6 +354,21 @@ def main():
                         elif btn.accion in ["ARRIBA", "ABAJO", "IZQUIERDA", "DERECHA"]:
                             # MOVIMIENTO INMEDIATO
                             robot.mover(btn.accion)
+                
+                # 2. Revisar Clic en Grilla (Solo si no fue un botón de UI y el robot está quieto)
+                if not clic_procesado and not robot.moviendose:
+                    adyacentes = [
+                        ("ARRIBA", robot.grid_x, robot.grid_y - 1),
+                        ("ABAJO", robot.grid_x, robot.grid_y + 1),
+                        ("IZQUIERDA", robot.grid_x - 1, robot.grid_y),
+                        ("DERECHA", robot.grid_x + 1, robot.grid_y)
+                    ]
+                    for accion, col, fila in adyacentes:
+                        if 0 <= col < COLUMNAS and 0 <= fila < FILAS:
+                            rect_celda = pygame.Rect(offset_x_global + col * TAMANO_CELDA, MARGEN_SUPERIOR + fila * TAMANO_CELDA, TAMANO_CELDA, TAMANO_CELDA)
+                            if rect_celda.collidepoint(evento.pos):
+                                robot.mover(accion)
+                                break
             
             if evento.type == pygame.MOUSEBUTTONUP:
                 for btn in botones:
@@ -378,6 +395,27 @@ def main():
             for col in range(COLUMNAS):
                 if (col, fila) in meta_pos_lista:
                     dibujar_meta(pantalla, offset_x_global + col * TAMANO_CELDA, MARGEN_SUPERIOR + fila * TAMANO_CELDA)
+
+        # --- DIBUJAR ICONOS DE AYUDA EN CELDAS ADYACENTES ---
+        if not robot.moviendose and meta_pos_lista:
+            adyacentes = [
+                ("ARRIBA", robot.grid_x, robot.grid_y - 1),
+                ("ABAJO", robot.grid_x, robot.grid_y + 1),
+                ("IZQUIERDA", robot.grid_x - 1, robot.grid_y),
+                ("DERECHA", robot.grid_x + 1, robot.grid_y)
+            ]
+            for accion, col, fila in adyacentes:
+                if 0 <= col < COLUMNAS and 0 <= fila < FILAS:
+                    icon = ICONOS_BOTONES.get(accion)
+                    if icon:
+                        # Dibujar icono tenue como guía
+                        rect_celda = pygame.Rect(offset_x_global + col * TAMANO_CELDA, MARGEN_SUPERIOR + fila * TAMANO_CELDA, TAMANO_CELDA, TAMANO_CELDA)
+                        # Redimensionar icono para la celda
+                        tam = int(TAMANO_CELDA * 0.4)
+                        icon_guia = pygame.transform.smoothscale(icon, (tam, tam))
+                        # Hacerlo traslúcido
+                        icon_guia.set_alpha(120)
+                        pantalla.blit(icon_guia, icon_guia.get_rect(center=rect_celda.center))
 
         robot.actualizar()
         robot.dibujar(pantalla, offset_x_global)
