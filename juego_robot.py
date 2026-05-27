@@ -3,11 +3,25 @@ import sys
 import time
 import math
 import random
+import os
+
+# --- COMPATIBILIDAD WINDOWS (DPI Awareness) ---
+# Esto hace que el juego se vea nítido en monitores con alta resolución en Windows
+if sys.platform == "win32":
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except:
+            pass
 
 # ==========================================================
 # NOTA DE INSTALACIÓN:
 # Si no tienes pygame instalado, ejecuta en tu terminal:
-# pip install pygame
+# Windows: pip install pygame
+# macOS/Linux: pip3 install pygame
 # ==========================================================
 
 # Configuración General (Puedes modificar estos valores)
@@ -244,7 +258,6 @@ def main():
     fuente = pygame.font.SysFont("Comic Sans MS", 36, bold=True)
     fuente_pequena = pygame.font.SysFont("Comic Sans MS", 24)
     
-    fullscreen = False
     robot = Robot(0, 0)
     meta_pos_lista = [(COLUMNAS - 1, FILAS - 1), (3, 2), (5, 0), (1, 3)]
     cola_instrucciones = []
@@ -278,11 +291,12 @@ def main():
             if evento.type == pygame.QUIT:
                 pygame.quit(); sys.exit()
             
-            if evento.type == pygame.VIDEORESIZE and not fullscreen:
-                pantalla = pygame.display.set_mode((evento.w, evento.h), pygame.RESIZABLE)
+            if evento.type == pygame.VIDEORESIZE:
+                # Actualizar posición del robot siempre que cambie el tamaño de forma segura
                 if not ejecutando and not robot.moviendose:
-                    robot.pix_x = robot.grid_x * TAMANO_CELDA + (evento.w - COLUMNAS * TAMANO_CELDA) // 2
-                    robot.target_pix_x = robot.pix_x
+                    # El offset se recalcula al inicio del loop principal, aquí solo refrescamos la posición visual
+                    # No llamamos a set_mode aquí para evitar conflictos en macOS
+                    pass
 
             if evento.type == pygame.MOUSEBUTTONDOWN and not ejecutando:
                 for btn in botones:
@@ -297,13 +311,10 @@ def main():
                 if evento.key == pygame.K_q:
                     pygame.quit(); sys.exit()
                 if evento.key == pygame.K_f:
-                    fullscreen = not fullscreen
-                    res = pygame.display.Info()
-                    pantalla = pygame.display.set_mode((res.current_w, res.current_h), pygame.FULLSCREEN if fullscreen else pygame.RESIZABLE)
-                    if not ejecutando and not robot.moviendose:
-                        nuevo_offset = (pantalla.get_width() - COLUMNAS * TAMANO_CELDA) // 2
-                        robot.pix_x = robot.grid_x * TAMANO_CELDA + nuevo_offset
-                        robot.target_pix_x = robot.pix_x
+                    # Usar toggle_fullscreen es la forma correcta y segura de hacerlo en macOS
+                    # para evitar el error "NSWindowStyleMaskFullScreen cleared on a window outside of transition"
+                    pygame.display.toggle_fullscreen()
+                
                 if evento.key == pygame.K_r:
                     robot = Robot(0, 0)
                     offset_x_global = (pantalla.get_width() - COLUMNAS * TAMANO_CELDA) // 2
